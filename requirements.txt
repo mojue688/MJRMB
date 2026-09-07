@@ -1,0 +1,5 @@
+pyaes>=0.5
+flask>=3.0.0
+pyinstaller>=6.0.0
+pillow>=9.0.0
+psutil>=5.9.0
