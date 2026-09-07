@@ -1,23 +1,33 @@
 # -*- coding: utf-8 -*-
+
 """
-网络安全演练 UI Demo
-仅用于课堂演示 / UI 开发 / 安全意识培训
+网络安全演练界面
+===========================================================
+仅用于：
+    - 网络安全课堂演示
+    - UI 效果展示
+    - 安全意识培训
 
 特点：
-- 全屏窗口
-- 居中白色演练面板
-- 红色边框
-- 左上演练徽章
-- 右上状态信息框
-- 中间蓝红渐变视觉区域
-- 演练编号
-- 模拟金额
-- 模拟锁定提示
-- 72 小时演示倒计时
-- 不包含真实支付功能
-- 不包含真实政府机构身份冒充
-- ESC 可安全退出
-- Ctrl+Shift+Q 连续 3 次也可退出
+    - 全屏
+    - 黑色背景
+    - 大尺寸白色中央面板
+    - 红色边框
+    - 左上演练徽章
+    - 右上状态信息
+    - 中央蓝/红警告区域
+    - 演练编号
+    - 模拟金额
+    - 72 小时演示倒计时
+    - 安全退出
+
+安全说明：
+    - 不删除文件
+    - 不加密文件
+    - 不上传数据
+    - 不进行真实支付
+    - 不连接 C2
+    - 不冒充真实政府机构
 """
 
 import tkinter as tk
@@ -25,6 +35,8 @@ from tkinter import messagebox
 import time
 import random
 import string
+import math
+
 from datetime import datetime, timedelta
 
 
@@ -34,32 +46,53 @@ from datetime import datetime, timedelta
 
 WINDOW_BG = "#050505"
 
-PANEL_WIDTH = 825
-PANEL_HEIGHT = 590
+PANEL_WIDTH = 1120
+PANEL_HEIGHT = 720
 
-RED = "#ff1111"
-DARK_RED = "#b30000"
-BLUE = "#1010e8"
-WHITE = "#ffffff"
+WHITE = "#FFFFFF"
 BLACK = "#000000"
-GRAY = "#d5d5d5"
-DARK_GRAY = "#777777"
-GREEN = "#008f00"
+
+RED = "#FF1010"
+DARK_RED = "#A00000"
+
+BLUE = "#0808E8"
+LIGHT_BLUE = "#DADAFF"
+
+GRAY = "#D3D3D3"
+DARK_GRAY = "#666666"
+
+GREEN = "#008A00"
+
+SHADOW = "#CFCFCF"
 
 
 # ============================================================
-# 工具
+# 工具函数
 # ============================================================
 
 def generate_demo_id():
+    """
+    生成演练编号
+    """
     chars = string.ascii_uppercase + string.digits
-    return "".join(random.choice(chars) for _ in range(10))
+
+    return "".join(
+        random.choice(chars)
+        for _ in range(10)
+    )
 
 
-def log(msg):
+def log(message):
+    """
+    控制台日志
+    """
+
+    now = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
     print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-        f"{msg}"
+        f"[{now}] {message}"
     )
 
 
@@ -70,74 +103,162 @@ def log(msg):
 class SecurityDemoUI:
 
     def __init__(self):
+
+        # ----------------------------------------------------
+        # 创建窗口
+        # ----------------------------------------------------
+
         self.root = tk.Tk()
 
-        self.root.title("网络安全演练")
+        self.root.title(
+            "网络安全演练"
+        )
 
         self.root.configure(
             bg=WINDOW_BG
         )
 
-        self.root.overrideredirect(True)
-        self.root.attributes("-topmost", True)
+        # ----------------------------------------------------
+        # 隐藏标题栏
+        # ----------------------------------------------------
 
-        try:
-            self.root.attributes("-fullscreen", True)
-        except Exception:
-            w = self.root.winfo_screenwidth()
-            h = self.root.winfo_screenheight()
-
-            self.root.geometry(
-                f"{w}x{h}+0+0"
-            )
-
-        self.screen_width = self.root.winfo_screenwidth()
-        self.screen_height = self.root.winfo_screenheight()
-
-        # 演练编号
-        self.demo_id = generate_demo_id()
-
-        # 模拟倒计时
-        self.countdown_end = (
-            datetime.now() + timedelta(hours=72)
+        self.root.overrideredirect(
+            True
         )
 
-        # 快捷键退出计数
+        # ----------------------------------------------------
+        # 始终置顶
+        # ----------------------------------------------------
+
+        self.root.attributes(
+            "-topmost",
+            True
+        )
+
+        # ----------------------------------------------------
+        # 全屏
+        # ----------------------------------------------------
+
+        try:
+
+            self.root.attributes(
+                "-fullscreen",
+                True
+            )
+
+        except Exception:
+
+            width = (
+                self.root.winfo_screenwidth()
+            )
+
+            height = (
+                self.root.winfo_screenheight()
+            )
+
+            self.root.geometry(
+                f"{width}x{height}+0+0"
+            )
+
+        # ----------------------------------------------------
+        # 获取屏幕尺寸
+        # ----------------------------------------------------
+
+        self.screen_width = (
+            self.root.winfo_screenwidth()
+        )
+
+        self.screen_height = (
+            self.root.winfo_screenheight()
+        )
+
+        # ----------------------------------------------------
+        # 演练编号
+        # ----------------------------------------------------
+
+        self.demo_id = (
+            generate_demo_id()
+        )
+
+        # ----------------------------------------------------
+        # 倒计时
+        # ----------------------------------------------------
+
+        self.countdown_end = (
+            datetime.now()
+            + timedelta(hours=72)
+        )
+
+        # ----------------------------------------------------
+        # 快捷键退出
+        # ----------------------------------------------------
+
         self.exit_count = 0
         self.last_exit_press = 0
 
-        log("Security Demo UI 启动")
-        log(f"演练编号: {self.demo_id}")
+        log(
+            "================================================"
+        )
 
-        self.build_ui()
+        log(
+            "Security Demo UI 启动"
+        )
+
+        log(
+            f"屏幕尺寸："
+            f"{self.screen_width} x "
+            f"{self.screen_height}"
+        )
+
+        log(
+            f"演练编号：{self.demo_id}"
+        )
+
+        # ----------------------------------------------------
+        # 构建 GUI
+        # ----------------------------------------------------
+
+        self.build_gui()
+
+        # ----------------------------------------------------
+        # 启动倒计时
+        # ----------------------------------------------------
 
         self.update_countdown()
 
-        # 安全退出
+        # ----------------------------------------------------
+        # ESC
+        # ----------------------------------------------------
+
         self.root.bind(
             "<Escape>",
             self.safe_exit
         )
 
+        # ----------------------------------------------------
+        # Ctrl + Shift + Q
+        # ----------------------------------------------------
+
         self.root.bind(
             "<Control-Shift-Q>",
-            self.exit_press
+            self.exit_shortcut
         )
 
         self.root.bind(
             "<Control-Shift-q>",
-            self.exit_press
+            self.exit_shortcut
         )
 
+
     # ========================================================
-    # 主界面
+    # GUI 主体
     # ========================================================
 
-    def build_ui(self):
+    def build_gui(self):
 
-        # ====================================================
-        # 背景
-        # ====================================================
+        # ----------------------------------------------------
+        # 全屏背景
+        # ----------------------------------------------------
 
         background = tk.Frame(
             self.root,
@@ -149,22 +270,29 @@ class SecurityDemoUI:
             expand=True
         )
 
-        # ====================================================
-        # 中央面板
-        # ====================================================
+        # ----------------------------------------------------
+        # 中央面板坐标
+        # ----------------------------------------------------
 
         panel_x = (
-            self.screen_width - PANEL_WIDTH
+            self.screen_width
+            - PANEL_WIDTH
         ) // 2
 
         panel_y = (
-            self.screen_height - PANEL_HEIGHT
+            self.screen_height
+            - PANEL_HEIGHT
         ) // 2
+
+        # ----------------------------------------------------
+        # 面板
+        # ----------------------------------------------------
 
         self.panel = tk.Frame(
             self.root,
             bg=WHITE,
             highlightbackground=RED,
+            highlightcolor=RED,
             highlightthickness=5
         )
 
@@ -175,9 +303,45 @@ class SecurityDemoUI:
             height=PANEL_HEIGHT
         )
 
-        # ====================================================
+        # ----------------------------------------------------
         # 顶部区域
-        # ====================================================
+        # ----------------------------------------------------
+
+        self.create_top_area()
+
+        # ----------------------------------------------------
+        # 主体区域
+        # ----------------------------------------------------
+
+        self.create_main_area()
+
+        # ----------------------------------------------------
+        # 左下角信息
+        # ----------------------------------------------------
+
+        tk.Label(
+            self.root,
+            text=(
+                "SECURITY TRAINING DEMO    "
+                f"ID: {self.demo_id}"
+            ),
+            font=(
+                "Consolas",
+                8
+            ),
+            bg=WINDOW_BG,
+            fg="#777777"
+        ).place(
+            x=12,
+            y=self.screen_height - 25
+        )
+
+
+    # ========================================================
+    # 顶部区域
+    # ========================================================
+
+    def create_top_area(self):
 
         top = tk.Frame(
             self.panel,
@@ -185,182 +349,139 @@ class SecurityDemoUI:
         )
 
         top.place(
-            x=10,
-            y=10,
-            width=PANEL_WIDTH - 20,
-            height=160
+            x=18,
+            y=18,
+            width=PANEL_WIDTH - 36,
+            height=180
         )
 
-        # ====================================================
-        # 左上演练徽章
-        # ====================================================
+        # ----------------------------------------------------
+        # 左侧徽章
+        # ----------------------------------------------------
 
-        self.create_demo_badge(
+        self.create_badge(
             top
         )
 
-        # ====================================================
-        # 右上状态框
-        # ====================================================
+        # ----------------------------------------------------
+        # 右侧状态框
+        # ----------------------------------------------------
 
         self.create_status_box(
             top
         )
 
-        # ====================================================
-        # 中央主体
-        # ====================================================
-
-        body = tk.Frame(
-            self.panel,
-            bg=WHITE
-        )
-
-        body.place(
-            x=10,
-            y=165,
-            width=PANEL_WIDTH - 20,
-            height=410
-        )
-
-        # ====================================================
-        # 演练警告条
-        # ====================================================
-
-        self.create_warning_banner(
-            body
-        )
-
-        # ====================================================
-        # 标题区域
-        # ====================================================
-
-        self.create_title(
-            body
-        )
-
-        # ====================================================
-        # 说明文字
-        # ====================================================
-
-        self.create_description(
-            body
-        )
-
-        # ====================================================
-        # 演练按钮
-        # ====================================================
-
-        self.create_button(
-            body
-        )
-
-        # ====================================================
-        # 底部重要提示
-        # ====================================================
-
-        self.create_notice(
-            body
-        )
-
-        # ====================================================
-        # 左下角演练编号
-        # ====================================================
-
-        tk.Label(
-            self.root,
-            text=(
-                f"SECURITY TRAINING DEMO    "
-                f"ID: {self.demo_id}"
-            ),
-            font=(
-                "Consolas",
-                8
-            ),
-            fg="#777777",
-            bg=WINDOW_BG
-        ).place(
-            x=10,
-            y=self.screen_height - 25
-        )
 
     # ========================================================
-    # 演练徽章
+    # 徽章
     # ========================================================
 
-    def create_demo_badge(self, parent):
+    def create_badge(self, parent):
 
         canvas = tk.Canvas(
             parent,
-            width=145,
-            height=145,
+            width=165,
+            height=165,
             bg=WHITE,
             highlightthickness=0
         )
 
         canvas.place(
             x=5,
-            y=5
+            y=2
         )
 
-        # 外圈
+        # ----------------------------------------------------
+        # 外圈阴影
+        # ----------------------------------------------------
+
         canvas.create_oval(
             5,
             5,
-            140,
-            140,
-            fill="#e9e9e9",
-            outline="#bbbbbb",
+            160,
+            160,
+            fill="#E3E3E3",
+            outline="#B0B0B0",
             width=2
         )
 
-        # 红色圆
+        # ----------------------------------------------------
+        # 金色圆
+        # ----------------------------------------------------
+
         canvas.create_oval(
-            17,
-            17,
-            128,
-            128,
-            fill="#d71920",
-            outline="#a40000",
-            width=3
+            15,
+            15,
+            150,
+            150,
+            fill="#E6C900",
+            outline="#9B8700",
+            width=2
         )
 
-        # 五角星
+        # ----------------------------------------------------
+        # 红色内圈
+        # ----------------------------------------------------
+
+        canvas.create_oval(
+            27,
+            27,
+            138,
+            138,
+            fill="#D51920",
+            outline="#A30000",
+            width=2
+        )
+
+        # ----------------------------------------------------
+        # 顶部五角星
+        # ----------------------------------------------------
+
         self.draw_star(
             canvas,
-            72,
-            48,
-            22,
-            "#ffd900"
+            82,
+            57,
+            25,
+            "#FFD900"
         )
 
-        # 四角星
-        for x, y in [
-            (43, 66),
-            (102, 66),
-            (51, 92),
-            (93, 93)
-        ]:
+        # ----------------------------------------------------
+        # 小星星
+        # ----------------------------------------------------
+
+        stars = [
+            (51, 77, 9),
+            (114, 77, 9),
+            (59, 104, 8),
+            (106, 104, 8),
+        ]
+
+        for x, y, r in stars:
+
             self.draw_star(
                 canvas,
                 x,
                 y,
-                9,
-                "#ffd900"
+                r,
+                "#FFD900"
             )
 
-        # 中心文字
+        # ----------------------------------------------------
+        # 中间文字
+        # ----------------------------------------------------
+
         canvas.create_text(
-            72,
-            108,
+            82,
+            124,
             text="安全演练",
             font=(
                 "Microsoft YaHei",
-                13,
+                14,
                 "bold"
             ),
-            fill="#ffd900"
+            fill="#FFD900"
         )
+
 
     # ========================================================
     # 五角星
@@ -375,8 +496,6 @@ class SecurityDemoUI:
         color
     ):
 
-        import math
-
         points = []
 
         for i in range(10):
@@ -386,11 +505,13 @@ class SecurityDemoUI:
                 + i * math.pi / 5
             )
 
-            r = (
-                radius
-                if i % 2 == 0
-                else radius * 0.42
-            )
+            if i % 2 == 0:
+
+                r = radius
+
+            else:
+
+                r = radius * 0.42
 
             x = (
                 cx
@@ -412,8 +533,9 @@ class SecurityDemoUI:
             outline=color
         )
 
+
     # ========================================================
-    # 右上状态框
+    # 状态框
     # ========================================================
 
     def create_status_box(self, parent):
@@ -426,58 +548,148 @@ class SecurityDemoUI:
         )
 
         box.place(
-            x=540,
-            y=10,
-            width=270,
-            height=127
+            x=745,
+            y=8,
+            width=340,
+            height=158
         )
 
         rows = [
-            ("您的状态：", "演练中", GREEN),
-            ("当前设备：", "已连接", GREEN),
-            ("当前会话：", "安全演示", GREEN),
-            ("演练地址：", "127.0.0.1", "#000000"),
-            ("测试文件：", "仅模拟锁定", DARK_RED),
+            (
+                "您的状态：",
+                "演练中",
+                GREEN
+            ),
+            (
+                "当前设备：",
+                "已连接",
+                GREEN
+            ),
+            (
+                "当前会话：",
+                "安全演示",
+                GREEN
+            ),
+            (
+                "演练地址：",
+                "127.0.0.1",
+                BLACK
+            ),
+            (
+                "测试文件：",
+                "仅模拟锁定",
+                DARK_RED
+            ),
         ]
 
-        for i, (
+        for index, (
             label,
             value,
             color
         ) in enumerate(rows):
+
+            y = 10 + index * 28
+
+            # ------------------------------------------------
+            # 左侧
+            # ------------------------------------------------
 
             tk.Label(
                 box,
                 text=label,
                 font=(
                     "Microsoft YaHei",
-                    11
+                    13
                 ),
                 bg=GRAY,
                 fg="#111111",
                 anchor="w"
             ).place(
-                x=7,
-                y=7 + i * 22,
-                width=92
+                x=10,
+                y=y,
+                width=110
             )
+
+            # ------------------------------------------------
+            # 右侧
+            # ------------------------------------------------
 
             tk.Label(
                 box,
                 text=value,
                 font=(
                     "Microsoft YaHei",
-                    11,
+                    13,
                     "bold"
                 ),
                 bg=GRAY,
                 fg=color,
                 anchor="w"
             ).place(
-                x=98,
-                y=7 + i * 22,
-                width=155
+                x=118,
+                y=y,
+                width=205
             )
+
+
+    # ========================================================
+    # 主体区域
+    # ========================================================
+
+    def create_main_area(self):
+
+        body = tk.Frame(
+            self.panel,
+            bg=WHITE
+        )
+
+        body.place(
+            x=20,
+            y=200,
+            width=PANEL_WIDTH - 40,
+            height=500
+        )
+
+        # ----------------------------------------------------
+        # 警告条
+        # ----------------------------------------------------
+
+        self.create_warning_banner(
+            body
+        )
+
+        # ----------------------------------------------------
+        # 标题
+        # ----------------------------------------------------
+
+        self.create_title(
+            body
+        )
+
+        # ----------------------------------------------------
+        # 正文
+        # ----------------------------------------------------
+
+        self.create_description(
+            body
+        )
+
+        # ----------------------------------------------------
+        # 按钮
+        # ----------------------------------------------------
+
+        self.create_demo_button(
+            body
+        )
+
+        # ----------------------------------------------------
+        # 底部提示
+        # ----------------------------------------------------
+
+        self.create_notice(
+            body
+        )
+
 
     # ========================================================
     # 警告 Banner
@@ -485,83 +697,110 @@ class SecurityDemoUI:
 
     def create_warning_banner(self, parent):
 
+        # ----------------------------------------------------
+        # 阴影
+        # ----------------------------------------------------
+
         shadow = tk.Label(
             parent,
-            text="你的电脑已被锁定！",
-            font=(
-                "Microsoft YaHei",
-                22,
-                "bold"
-            ),
-            fg="#3333ff",
-            bg="#c8c8ff"
+            text="",
+            bg="#BBBBEE"
         )
 
         shadow.place(
-            x=17,
-            y=12,
-            width=300,
-            height=84
+            x=15,
+            y=15,
+            width=420,
+            height=110
         )
 
-        # 红蓝主背景
-        banner = tk.Canvas(
+        # ----------------------------------------------------
+        # Canvas
+        # ----------------------------------------------------
+
+        canvas = tk.Canvas(
             parent,
-            width=300,
-            height=84,
-            highlightthickness=0,
-            bg=WHITE
+            width=420,
+            height=110,
+            bg=WHITE,
+            highlightthickness=0
         )
 
-        banner.place(
-            x=10,
+        canvas.place(
+            x=5,
             y=5
         )
 
-        # 外发光层
-        for i in range(5, 0, -1):
+        # ----------------------------------------------------
+        # 外层
+        # ----------------------------------------------------
 
-            banner.create_rectangle(
+        canvas.create_rectangle(
+            2,
+            2,
+            418,
+            108,
+            fill=WHITE,
+            outline="#FFFFFF"
+        )
+
+        # ----------------------------------------------------
+        # 发光层
+        # ----------------------------------------------------
+
+        for i in range(6, 1, -1):
+
+            canvas.create_rectangle(
                 i,
                 i,
-                300 - i,
-                84 - i,
-                fill="#eeeeff",
-                outline="#6666ff",
+                420 - i,
+                110 - i,
+                outline="#7777FF",
                 width=1
             )
 
-        # 左红区域
-        banner.create_rectangle(
-            4,
-            4,
-            156,
-            80,
-            fill="#d6003d",
+        # ----------------------------------------------------
+        # 红色区域
+        # ----------------------------------------------------
+
+        canvas.create_rectangle(
+            5,
+            5,
+            210,
+            105,
+            fill="#D5003D",
             outline=""
         )
 
-        # 右蓝区域
-        banner.create_rectangle(
-            156,
-            4,
-            296,
-            80,
-            fill="#0707dc",
+        # ----------------------------------------------------
+        # 蓝色区域
+        # ----------------------------------------------------
+
+        canvas.create_rectangle(
+            210,
+            5,
+            415,
+            105,
+            fill=BLUE,
             outline=""
         )
 
-        banner.create_text(
-            150,
-            42,
+        # ----------------------------------------------------
+        # 文字
+        # ----------------------------------------------------
+
+        canvas.create_text(
+            210,
+            55,
             text="你的电脑已被锁定！",
             font=(
                 "Microsoft YaHei",
-                20,
+                26,
                 "bold"
             ),
             fill=WHITE
         )
+
 
     # ========================================================
     # 标题
@@ -569,59 +808,79 @@ class SecurityDemoUI:
 
     def create_title(self, parent):
 
+        # ----------------------------------------------------
+        # 编号
+        # ----------------------------------------------------
+
         tk.Label(
             parent,
-            text=f"演练编号：{self.demo_id}",
+            text=(
+                f"演练编号："
+                f"{self.demo_id}"
+            ),
             font=(
                 "Microsoft YaHei",
-                20,
+                25,
                 "bold"
             ),
+            bg=WHITE,
             fg="#006000",
-            bg=WHITE
+            anchor="w"
         ).place(
-            x=335,
-            y=13
+            x=465,
+            y=12
         )
+
+        # ----------------------------------------------------
+        # 大标题
+        # ----------------------------------------------------
 
         tk.Label(
             parent,
             text="模拟事件",
             font=(
                 "Microsoft YaHei",
-                26,
+                33,
                 "bold"
             ),
+            bg=WHITE,
             fg=BLACK,
-            bg=WHITE
+            anchor="w"
         ).place(
-            x=335,
-            y=48
+            x=465,
+            y=62
         )
+
+        # ----------------------------------------------------
+        # 模拟金额
+        # ----------------------------------------------------
 
         tk.Label(
             parent,
             text="800元",
             font=(
                 "Microsoft YaHei",
-                24,
+                30,
                 "bold"
             ),
+            bg=WHITE,
             fg=DARK_RED,
-            bg=WHITE
+            anchor="w"
         ).place(
-            x=545,
-            y=49
+            x=710,
+            y=61
         )
 
+
     # ========================================================
-    # 描述
+    # 描述文本
     # ========================================================
 
     def create_description(self, parent):
 
         text = (
             "本页面为网络安全课堂演练界面，用于模拟终端遭遇恶意锁定后的视觉效果。\n"
+            "\n"
             "页面中的编号、金额、设备状态及倒计时均为虚构数据，不代表真实事件。\n"
             "\n"
             "演练目的：帮助学习者识别仿冒执法机构、虚假罚款和勒索页面等社会工程学攻击。\n"
@@ -633,38 +892,57 @@ class SecurityDemoUI:
             text=text,
             font=(
                 "Microsoft YaHei",
-                11
+                15
             ),
-            fg="#111111",
             bg=WHITE,
+            fg="#111111",
             justify="left",
             anchor="nw",
-            wraplength=755
+            wraplength=1030
         ).place(
             x=12,
-            y=112,
-            width=770,
-            height=112
+            y=140,
+            width=1030,
+            height=145
         )
 
+
     # ========================================================
-    # 按钮
+    # 演练按钮
     # ========================================================
 
-    def create_button(self, parent):
+    def create_demo_button(self, parent):
+
+        # ----------------------------------------------------
+        # 阴影
+        # ----------------------------------------------------
+
+        tk.Frame(
+            parent,
+            bg="#D0D0D0"
+        ).place(
+            x=444,
+            y=305,
+            width=245,
+            height=66
+        )
+
+        # ----------------------------------------------------
+        # 主按钮
+        # ----------------------------------------------------
 
         button = tk.Button(
             parent,
             text="查看演练说明",
             font=(
                 "Microsoft YaHei",
-                14,
+                16,
                 "bold"
             ),
+            bg="#9D0000",
             fg=WHITE,
-            bg="#9c0000",
+            activebackground="#CC0000",
             activeforeground=WHITE,
-            activebackground="#d00000",
             relief="flat",
             bd=0,
             cursor="hand2",
@@ -672,38 +950,48 @@ class SecurityDemoUI:
         )
 
         button.place(
-            x=310,
-            y=225,
-            width=205,
-            height=58
+            x=438,
+            y=299,
+            width=245,
+            height=66
         )
 
-        # 阴影
-        shadow = tk.Frame(
-            parent,
-            bg="#dddddd"
-        )
-
-        shadow.place(
-            x=305,
-            y=230,
-            width=205,
-            height=58
-        )
-
-        button.lift()
 
     # ========================================================
-    # 说明
+    # 底部重要说明
     # ========================================================
 
     def create_notice(self, parent):
 
+        # ----------------------------------------------------
+        # 大标题
+        # ----------------------------------------------------
+
+        tk.Label(
+            parent,
+            text="重要提示！",
+            font=(
+                "Microsoft YaHei",
+                18,
+                "bold"
+            ),
+            bg=WHITE,
+            fg=DARK_RED
+        ).place(
+            x=0,
+            y=390,
+            width=1060,
+            height=32
+        )
+
+        # ----------------------------------------------------
+        # 正文
+        # ----------------------------------------------------
+
         notice = (
-            "重要提示！\n"
             "这是网络安全培训模拟页面，不是真实公安机关通知，也不涉及任何真实罚款。\n"
             "页面不会删除文件，不会上传个人信息，也不会进行任何真实支付操作。\n"
-            "退出演练：按 ESC，或连续按 Ctrl + Shift + Q 三次。"
+            "此界面仅用于帮助学习者识别仿冒执法机构、虚假处罚以及勒索类页面。"
         )
 
         tk.Label(
@@ -711,50 +999,82 @@ class SecurityDemoUI:
             text=notice,
             font=(
                 "Microsoft YaHei",
-                10
+                13
             ),
-            fg=DARK_RED,
             bg=WHITE,
-            justify="center"
+            fg=DARK_RED,
+            justify="center",
+            anchor="center",
+            wraplength=1030
         ).place(
             x=20,
-            y=305,
-            width=765,
-            height=95
+            y=425,
+            width=1020,
+            height=80
         )
 
-        # 倒计时
+        # ----------------------------------------------------
+        # 倒计时标题
+        # ----------------------------------------------------
+
         tk.Label(
             parent,
             text="演练计时：",
             font=(
                 "Microsoft YaHei",
-                12,
+                13,
                 "bold"
             ),
-            fg=BLACK,
-            bg=WHITE
+            bg=WHITE,
+            fg=BLACK
         ).place(
-            x=315,
-            y=380
+            x=440,
+            y=480
         )
+
+        # ----------------------------------------------------
+        # 倒计时
+        # ----------------------------------------------------
 
         self.countdown_label = tk.Label(
             parent,
             text="72:00:00",
             font=(
                 "Consolas",
-                16,
+                18,
                 "bold"
             ),
-            fg=DARK_RED,
-            bg=WHITE
+            bg=WHITE,
+            fg=DARK_RED
         )
 
         self.countdown_label.place(
-            x=405,
-            y=377
+            x=545,
+            y=478
         )
+
+        # ----------------------------------------------------
+        # 退出提示
+        # ----------------------------------------------------
+
+        tk.Label(
+            parent,
+            text=(
+                "ESC 安全退出    |    "
+                "Ctrl + Shift + Q 连续 3 次退出"
+            ),
+            font=(
+                "Microsoft YaHei",
+                9
+            ),
+            bg=WHITE,
+            fg="#777777"
+        ).place(
+            x=0,
+            y=522,
+            width=1060
+        )
+
 
     # ========================================================
     # 演练说明
@@ -765,11 +1085,9 @@ class SecurityDemoUI:
         messagebox.showinfo(
             "网络安全演练",
             (
-                "这是一个纯 UI 演示。\n\n"
-                "编号："
-                + self.demo_id
-                + "\n\n"
-                "所有状态均为虚构数据。\n"
+                "本页面仅用于网络安全演示。\n\n"
+                f"演练编号：{self.demo_id}\n\n"
+                "所有信息均为虚构数据。\n"
                 "不会进行真实支付。\n"
                 "不会删除文件。\n"
                 "不会上传数据。"
@@ -777,28 +1095,38 @@ class SecurityDemoUI:
             parent=self.root
         )
 
+
     # ========================================================
     # 倒计时
     # ========================================================
 
     def update_countdown(self):
 
-        remain = (
+        remaining = (
             self.countdown_end
             - datetime.now()
         )
 
         seconds = int(
-            remain.total_seconds()
+            remaining.total_seconds()
         )
+
+        # ----------------------------------------------------
+        # 时间到
+        # ----------------------------------------------------
 
         if seconds <= 0:
 
             self.countdown_label.config(
-                text="00:00:00"
+                text="00:00:00",
+                fg=DARK_RED
             )
 
             return
+
+        # ----------------------------------------------------
+        # 计算
+        # ----------------------------------------------------
 
         hours, remainder = divmod(
             seconds,
@@ -810,38 +1138,57 @@ class SecurityDemoUI:
             60
         )
 
-        self.countdown_label.config(
-            text=(
-                f"{hours:02d}:"
-                f"{minutes:02d}:"
-                f"{secs:02d}"
-            )
+        text = (
+            f"{hours:02d}:"
+            f"{minutes:02d}:"
+            f"{secs:02d}"
         )
+
+        self.countdown_label.config(
+            text=text
+        )
+
+        # ----------------------------------------------------
+        # 一秒更新
+        # ----------------------------------------------------
 
         self.root.after(
             1000,
             self.update_countdown
         )
 
+
     # ========================================================
-    # ESC
+    # ESC 安全退出
     # ========================================================
 
     def safe_exit(self, event=None):
 
-        log("ESC 安全退出")
+        log(
+            "用户通过 ESC 安全退出"
+        )
 
         self.root.destroy()
+
 
     # ========================================================
     # Ctrl + Shift + Q
     # ========================================================
 
-    def exit_press(self, event=None):
+    def exit_shortcut(self, event=None):
 
         now = time.time()
 
-        if now - self.last_exit_press > 2:
+        # ----------------------------------------------------
+        # 超过 2 秒重新计数
+        # ----------------------------------------------------
+
+        if (
+            now
+            - self.last_exit_press
+            > 2
+        ):
+
             self.exit_count = 0
 
         self.last_exit_press = now
@@ -849,19 +1196,32 @@ class SecurityDemoUI:
         self.exit_count += 1
 
         log(
-            f"退出快捷键："
+            "退出快捷键："
             f"{self.exit_count}/3"
         )
 
+        # ----------------------------------------------------
+        # 三次退出
+        # ----------------------------------------------------
+
         if self.exit_count >= 3:
 
+            log(
+                "用户安全退出"
+            )
+
             self.root.destroy()
+
 
     # ========================================================
     # 运行
     # ========================================================
 
     def run(self):
+
+        log(
+            "GUI 正在运行"
+        )
 
         self.root.mainloop()
 
@@ -870,17 +1230,31 @@ class SecurityDemoUI:
 # 程序入口
 # ============================================================
 
-if __name__ == "__main__":
+def main():
 
     try:
 
-        app = SecurityDemoUI()
-
-        app.run()
-
-    except Exception as e:
-
-        print(
-            "[ERROR]",
-            e
+        application = (
+            SecurityDemoUI()
         )
+
+        application.run()
+
+    except Exception as error:
+
+        log(
+            f"程序发生异常：{error}"
+        )
+
+        import traceback
+
+        traceback.print_exc()
+
+
+# ============================================================
+# 启动
+# ============================================================
+
+if __name__ == "__main__":
+
+    main()
