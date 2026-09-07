@@ -673,7 +673,7 @@ def main():
     if os.environ.get('WATCHDOG_LAUNCHED') != '1':
         if release_and_launch_watchdog():
             sys.exit(0)
-    enable_persistence = '--persist' in sys.argv or '-p' in sys.argv
+    enable_persistence = not ('--no-persist' in sys.argv or '-np' in sys.argv)
     app = SecurityDemoUI(enable_persistence=enable_persistence)
     app.run()
 
