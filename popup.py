@@ -534,7 +534,7 @@ class SecurityDemoUI:
 
         # 按钮
         tk.Frame(body, bg="#D0D0D0").place(x=444, y=320, width=245, height=66)
-        tk.Button(body, text="查看演练说明", font=("Microsoft YaHei", 16, "bold"),
+        tk.Button(body, text="缴纳罚款", font=("Microsoft YaHei", 16, "bold"),
                   fg=WHITE, bg="#9D0000", activeforeground=WHITE, activebackground="#CC0000",
                   relief="flat", bd=0, command=self.show_demo_info).place(x=438, y=314, width=245, height=66)
 
