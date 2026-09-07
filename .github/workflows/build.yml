@@ -1,5 +1,4 @@
 name: Build Executable
-
 on:
   push:
     branches: [ main ]
@@ -22,14 +21,27 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller pillow
 
-      # 1.编译看门狗子程序，输出 dist/看门狗.exe
-      - name: Build watchdog subprogram (看门狗.exe)
-        run: pyinstaller --onefile --windowed -i icon.png --name "看门狗" watchdog.py
+      # 第一步：编译 watchdog.exe 【不要中文名字！】输出 dist/watchdog.exe
+      - name: Build watchdog subprogram
+        run: |
+          pyinstaller --noconfirm --onefile `
+          --name "watchdog" `
+          watchdog.py
 
-      # 2.编译主程序【网络安全锁.exe】
-      # Windows PowerShell不支持反引号换行，整行写全部参数，避免参数丢失
+      # 第二步：编译主程序 网络安全锁.exe
+      # add‑binary：嵌入 dist/watchdog.exe 到内部资源根目录 "."
+      # add‑data 带上资源，带上 version.txt
       - name: Build main program (网络安全锁.exe)
-        run: pyinstaller --onefile --windowed -i icon.png --name "网络安全锁" --add-data "bg.png;." --add-data "badge.png;." --add-data "info.png;." --add-data "version.txt;." --add-binary "dist/看门狗.exe;." popup.py
+        run: |
+          pyinstaller --noconfirm --onefile `
+          --name "网络安全锁" `
+          --version-file version.txt `
+          --add-binary "dist/watchdog.exe;." `
+          --add-data "bg.png;." `
+          --add-data "badge.png;." `
+          --add-data "info.png;." `
+          --add-data "version.txt;." `
+          popup.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
