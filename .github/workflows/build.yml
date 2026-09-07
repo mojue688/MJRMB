@@ -22,12 +22,22 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      # 🟢第一步：先编译 watchdog.py 生成 watchdog.exe
+      - name: Build watchdog sub program
         run: |
-          pyinstaller --onefile --windowed --add-data "bg.png;." popup.py
+          pyinstaller --onefile watchdog.py
+        # 产物输出到 dist/watchdog.exe
+
+      # 🔴重点：打包popup主程序，同时把 watchdog.exe 和 bg.png 全部打进exe资源
+      - name: Build popup main program
+        run: |
+          pyinstaller --onefile --windowed `
+            --add-data "bg.png;." `
+            --add-binary "dist/watchdog.exe;." `
+            popup.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
-          path: dist/*.exe
+          path: dist/popup.exe
