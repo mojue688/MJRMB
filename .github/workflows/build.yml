@@ -3,46 +3,40 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller pillow
-
-      # 第一步：编译 watchdog.exe 【不要中文名字！】输出 dist/watchdog.exe
+      # 第一步：编译 watchdog.exe，增加 --icon 给看门狗程序设置图标
       - name: Build watchdog subprogram
         run: |
           pyinstaller --noconfirm --onefile `
           --name "watchdog" `
+          --icon icon.png `
           watchdog.py
-
-      # 第二步：编译主程序 网络安全锁.exe
-      # add‑binary：嵌入 dist/watchdog.exe 到内部资源根目录 "."
-      # add‑data 带上资源，带上 version.txt
+      # 第二步：编译主程序 网络安全锁.exe，同样增加 --icon
       - name: Build main program (网络安全锁.exe)
         run: |
           pyinstaller --noconfirm --onefile `
           --name "网络安全锁" `
           --version-file version.txt `
+          --icon icon.png `
           --add-binary "dist/watchdog.exe;." `
           --add-data "bg.png;." `
           --add-data "badge.png;." `
           --add-data "info.png;." `
           --add-data "version.txt;." `
           popup.py
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
