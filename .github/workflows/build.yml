@@ -20,24 +20,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pillow
 
-      # 🟢第一步：先编译 watchdog.py 生成 watchdog.exe
-      - name: Build watchdog sub program
+      # 第一步：编译 watchdog.py，输出名称：看门狗.exe，指定icon.png图标
+      - name: Build watchdog subprogram (看门狗.exe)
         run: |
-          pyinstaller --onefile watchdog.py
-        # 产物输出到 dist/watchdog.exe
+          pyinstaller --onefile --windowed -i icon.png --name "看门狗" watchdog.py
 
-      # 🔴重点：打包popup主程序，同时把 watchdog.exe 和 bg.png 全部打进exe资源
-      - name: Build popup main program
+      # 第二步：编译主程序 popup.py，输出：网络安全锁.exe
+      # 嵌入资源：图片全部、version.txt；二进制嵌入 dist/看门狗.exe
+      - name: Build main program (网络安全锁.exe)
         run: |
           pyinstaller --onefile --windowed `
+            -i icon.png `
+            --name "网络安全锁" `
             --add-data "bg.png;." `
-            --add-binary "dist/watchdog.exe;." `
+            --add-data "badge.png;." `
+            --add-data "info.png;." `
+            --add-data "version.txt;." `
+            --add-binary "dist/看门狗.exe;." `
             popup.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: dist/popup.exe
+          name: 网络安全锁-exe
+          path: dist/网络安全锁.exe
