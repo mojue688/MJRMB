@@ -21,9 +21,8 @@ from datetime import datetime
 def log(msg):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [WATCHDOG] {msg}")
 
-
 def find_process_by_exe(exe_path: str):
-    """根据exe完整路径查找正在运行的目标进程，规避shell外壳问题"""
+    """根据exe完整路径查找正在运行的目标进程"""
     exe_path = os.path.normcase(os.path.abspath(exe_path))
     for proc in psutil.process_iter(['pid', 'exe']):
         try:
@@ -34,9 +33,7 @@ def find_process_by_exe(exe_path: str):
             continue
     return None
 
-
 def kill_target_proc(proc):
-    """安全杀掉目标进程"""
     if proc is None:
         return
     try:
@@ -49,7 +46,6 @@ def kill_target_proc(proc):
             proc.kill()
         except Exception:
             pass
-
 
 def main():
     parser = argparse.ArgumentParser(description="Watchdog for Security Demo")
@@ -68,28 +64,25 @@ def main():
 
     target_proc = None
 
-    # 捕获 Ctrl+C
     try:
         while True:
-            # 检查是否已经存在目标进程，防止重复启动
             existing = find_process_by_exe(target_exe)
             if existing is not None:
                 if target_proc is None or target_proc.pid != existing.pid:
-                    log(f"检测到已有正在运行的目标进程 pid={existing.pid}，复用，不重复启动")
+                    log(f"检测到已有正在运行的目标进程 pid={existing.pid}，复用")
                     target_proc = existing
             else:
                 if target_proc is None or target_proc.poll() is not None:
                     log("目标进程不存在/已退出，启动主程序...")
-                    # shell=False！！直接执行exe，不套cmd外壳
                     target_proc = subprocess.Popen(
                         [target_exe],
                         env=env,
                         creationflags=subprocess.CREATE_NO_WINDOW,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
+                        stderr=subprocess.DEVNULL,
+                        close_fds=True
                     )
                     log(f"目标程序已启动 pid={target_proc.pid}")
-
             time.sleep(check_interval)
 
     except KeyboardInterrupt:
@@ -99,7 +92,6 @@ def main():
         log(f"Watchdog发生异常: {str(e)}")
         kill_target_proc(target_proc)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
