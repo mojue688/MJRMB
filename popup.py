@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-网络安全演练 UI - 终极单 EXE 版（内嵌 watchdog）
+""" 网络安全演练 UI - 终极单 EXE 版（内嵌 watchdog）
 ========================================================
 功能：
     - 首次运行释放 watchdog.exe 到 %APPDATA%\SecurityDemo，启动后退出
@@ -315,7 +314,6 @@ def release_and_launch_watchdog():
             log("主程序副本复制完成", console=False)
 
         launch_target_exe = main_exe_dst
-
         # 构造 watchdog 启动参数
         cmd = [target_watchdog, '--target', launch_target_exe]
         if '--persist' in sys.argv or '-p' in sys.argv:
@@ -517,7 +515,7 @@ class SecurityDemoUI:
                            font=("Microsoft YaHei", 30, "bold"), fill=WHITE)
         tk.Label(body, text=f"执行编号：{self.demo_id}",
                  font=("Microsoft YaHei", 28, "bold"), bg=WHITE, fg="#006000", anchor="w").place(x=520, y=18)
-        tk.Label(body, text="你被罚款", font=("Microsoft YaHei", 38, "bold"),
+        tk.Label(body, text="你已被学校处罚", font=("Microsoft YaHei", 38, "bold"),
                  bg=WHITE, fg=BLACK, anchor="w").place(x=520, y=70)
         tk.Label(body, text="380元", font=("Microsoft YaHei", 34, "bold"),
                  bg=WHITE, fg=DARK_RED, anchor="w").place(x=780, y=68)
@@ -527,9 +525,10 @@ class SecurityDemoUI:
             "即恋童癖和虐待儿童内容的色情网站而被禁止。\n"
             "\n"
             "您必须根据第0945‑I3467361778号条例\n"
+            "请于明日携带电脑前往教务解除。\n"
             "将380元 罚款转入公安部罚款征收账户。\n"
             "\n"
-            "支付罚款后，您的计算机将自动解锁，将不会对您提起刑事诉讼！"
+            "你因多次连接学校网络浏览色情网站，已被处罚！请于明日携带电脑前往教务解除！"
         )
         tk.Label(body, text=text, font=("Microsoft YaHei", 16),
                  bg=WHITE, fg="#111111", justify="left", wraplength=1150).place(x=16, y=160, width=1150, height=190)
