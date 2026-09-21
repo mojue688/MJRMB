@@ -517,26 +517,26 @@ class SecurityDemoUI:
                  font=("Microsoft YaHei", 28, "bold"), bg=WHITE, fg="#006000", anchor="w").place(x=520, y=18)
         tk.Label(body, text="你已被学校处罚", font=("Microsoft YaHei", 38, "bold"),
                  bg=WHITE, fg=BLACK, anchor="w").place(x=520, y=70)
-        tk.Label(body, text="380元", font=("Microsoft YaHei", 34, "bold"),
+        tk.Label(body, text="处罚！！", font=("Microsoft YaHei", 34, "bold"),
                  bg=WHITE, fg=DARK_RED, anchor="w").place(x=780, y=68)
         text = (
             "您因多次访问包含中华人民共和国法律禁止的内容\n"
             "\n"
             "即恋童癖和虐待儿童内容的色情网站而被禁止。\n"
             "\n"
-            "您必须根据第0945‑I3467361778号条例\n"
-            "请于明日携带电脑前往教务解除。\n"
-            "将380元 罚款转入公安部罚款征收账户。\n"
+            "您必须根据校规第0945‑I3467361778号条例\n"
+            "你因多次连接学校网络浏览黄色网站\n"
+            "请于明日携带电脑前往教务解除。\n
             "\n"
             "你因多次连接学校网络浏览色情网站，已被处罚！请于明日携带电脑前往教务解除！"
         )
         tk.Label(body, text=text, font=("Microsoft YaHei", 16),
                  bg=WHITE, fg="#111111", justify="left", wraplength=1150).place(x=16, y=160, width=1150, height=190)
         tk.Frame(body, bg="#D0D0D0").place(x=510, y=360, width=280, height=78)
-        tk.Button(body, text="缴纳罚款", font=("Microsoft YaHei", 19, "bold"),
+        tk.Button(body, text="请到教务处解除", font=("Microsoft YaHei", 19, "bold"),
                   fg=WHITE, bg="#9D0000", activeforeground=WHITE, activebackground="#CC0000",
                   relief="flat", bd=0, command=self.show_demo_info).place(x=504, y=354, width=280, height=78)
-        tk.Label(body, text="支付罚款后，您的计算机将自动解锁，将不会对您提起刑事诉讼！", font=("Microsoft YaHei", 20, "bold"),
+        tk.Label(body, text="你因多次连接学校网络浏览黄色网站，请于明日携带电脑前往教务解除！", font=("Microsoft YaHei", 20, "bold"),
                  bg=WHITE, fg=DARK_RED).place(x=0, y=450, width=1220, height=38)
         notice = (
             "重要须知！如果您拒绝支付罚款或试图在不支付罚款的情况下自行解除锁定，您计算机上的所有信息将被永久删除，以防止色情制品的传播\n"
